@@ -40,7 +40,9 @@ done
 
 # Argo CD consumes these charts straight from main, so they must render.
 for chart in automation/argocd automation/argocd/components/*/; do
-  helm template lab "$chart" --set deployer.domain=apps.example.com >/dev/null || fail "$chart does not render"
+  # Components get the parent's values, as the parent passes them through.
+  helm template lab "$chart" -f automation/argocd/values.yaml --set deployer.domain=apps.example.com >/dev/null ||
+    fail "$chart does not render"
 done
 
 # A defined attribute still shown as {name} in the HTML was never substituted:

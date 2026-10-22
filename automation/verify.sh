@@ -27,9 +27,13 @@ apps_synced_healthy() {
   apps=$(oc -n "$GITOPS_NS" get applications.argoproj.io \
     -l demo.redhat.com/application=field-content \
     -o jsonpath='{range .items[*]}{.metadata.name} {.status.sync.status}/{.status.health.status}{"\n"}{end}') || return 1
-  # Both children must exist, and every Application must be Synced/Healthy.
-  grep -q "^$LAB_APP-showroom " <<<"$apps" && grep -q "^$LAB_APP-prereqs " <<<"$apps" &&
-    ! grep -qv ' Synced/Healthy$' <<<"$apps"
+  # Both children must exist, and this lab's Applications (exact names) must be Synced/Healthy.
+  awk -v app="$LAB_APP" '
+    $1 == app "-showroom" { s = 1 }
+    $1 == app "-prereqs" { p = 1 }
+    ($1 == app || $1 == app "-showroom" || $1 == app "-prereqs") && $2 != "Synced/Healthy" { bad = 1 }
+    END { exit !(s && p && !bad) }
+  ' <<<"$apps"
 }
 
 showroom_answers() {
@@ -45,8 +49,9 @@ no_networkpolicies() {
 }
 
 model_api_returns_200() {
-  [[ "$(oc --as "$TERMINAL_SA" -n "$LAB_NS" exec "deploy/$1" -- \
-    curl -s -o /dev/null -m 3 -w '%{http_code}' http://model-api:8080/v1/models)" == 200 ]]
+  local code
+  code=$(oc --as "$TERMINAL_SA" -n "$LAB_NS" exec "deploy/$1" -- \
+    curl -s -o /dev/null -m 3 -w '%{http_code}' http://model-api:8080/v1/models) && [[ $code == 200 ]]
 }
 
 check "lab Applications are Synced/Healthy" apps_synced_healthy
