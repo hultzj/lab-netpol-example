@@ -1,0 +1,7 @@
+# Set by the parent chart.
+lab:
+  namespace: ""
+showroom:
+  namespace: showroom
+deployer:
+  domain: ""

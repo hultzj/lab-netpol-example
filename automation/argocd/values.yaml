@@ -1,0 +1,30 @@
+# Repository Argo CD syncs the children from (this lab's repo).
+gitops:
+  repoUrl: https://github.com/CHANGE-ME/CHANGE-ME.git
+  revision: main
+  basePath: automation/argocd
+
+argocd:
+  namespace: openshift-gitops
+  # The field-content workload overrides this to "deployed".
+  project: default
+
+lab:
+  namespace: CHANGE-ME
+
+showroom:
+  enabled: true
+  namespace: showroom
+  # Upstream chart, referenced (not copied) and pinned to a commit.
+  chart:
+    repoUrl: https://github.com/rhpds/field-sourced-content-template.git
+    revision: 24ab4baf372d3dbe6b31a7532f8ad8683b5a22c6
+    path: examples/helm/components/showroom
+
+# Injected by the field-content workload (or bootstrap.yaml); do not set here.
+deployer:
+  domain: ""
+  apiUrl: ""
+
+fieldContent:
+  deploymentType: helm

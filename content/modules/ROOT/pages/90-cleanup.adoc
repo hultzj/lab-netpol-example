@@ -1,0 +1,26 @@
+= Cleanup
+:navtitle: Cleanup
+
+== Remove what you created
+
+// Participant-created resources only; the GitOps-managed prerequisites stay.
+[source,bash,role="execute",subs="attributes+"]
+----
+CHANGE-ME
+----
+
+Expected result: CHANGE-ME
+// UNVERIFIED
+
+== Remove the lab environment (cluster owner only)
+
+Do not run this on a facilitator-managed cluster. From a cluster-admin shell
+in a checkout of this repository:
+
+[source,bash]
+----
+make -C automation teardown
+----
+
+Deleting the parent Application removes the Showroom and lab prerequisites
+it created.

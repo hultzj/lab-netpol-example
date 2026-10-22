@@ -1,0 +1,14 @@
+{
+  "name": "lab-netpol-sample",
+  "private": true,
+  "scripts": {
+    "build": "antora --fetch --log-failure-level warn site.yml",
+    "check": "bash scripts/check-lab.sh"
+  },
+  "devDependencies": {
+    "@andrew-jones/antora-tabs-extension": "1.0.0",
+    "@antora/cli": "3.2.0",
+    "@antora/site-generator": "3.2.0",
+    "@sntke/antora-mermaid-extension": "0.0.9"
+  }
+}

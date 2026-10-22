@@ -1,0 +1,29 @@
+# Parent Application for clusters without an RHDP order; `make bootstrap`
+# fills in DEPLOYER_DOMAIN. On RHDP the Field Content CI creates the
+# equivalent itself.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: CHANGE-ME-lab
+  namespace: openshift-gitops
+  labels:
+    demo.redhat.com/application: field-content
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CHANGE-ME/CHANGE-ME.git
+    targetRevision: main
+    path: automation/argocd
+    helm:
+      valuesObject:
+        deployer:
+          domain: DEPLOYER_DOMAIN
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-gitops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
