@@ -86,7 +86,6 @@ Expected result: `networkpolicy.networking.k8s.io/{deny_policy} created`
 (or `unchanged` on a re-run), then one row `{deny_policy}` whose
 `POD-SELECTOR` column is `<none>`, meaning it selects all pods. This proves
 the policy exists; it does not yet prove anything is blocked.
-// UNVERIFIED
 
 == Exercise 2: Prove both clients are blocked
 
@@ -107,7 +106,6 @@ Expected result: each line takes about three seconds and prints
 same requests returned `200` and that a reachable server always returns a
 status code, so this proves the policy now drops traffic from both clients,
 including the legitimate one.
-// UNVERIFIED
 
 In short: default-deny has no exceptions until you write them; the real application is now broken too.
 
@@ -116,6 +114,7 @@ In short: default-deny has no exceptions until you write them; the real applicat
 ====
 [source,bash,subs="attributes+"]
 ----
+(
 for client in {allowed_client} {blocked_client}; do
   code=$(oc -n {lab_namespace} exec deploy/$client -- \
     curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path})
@@ -123,6 +122,7 @@ for client in {allowed_client} {blocked_client}; do
   test "$code $rc" = "000 28" || { echo "FAIL: $client got '$code' (exit $rc), want 000 with timeout exit 28"; exit 1; }
 done
 echo PASS
+)
 ----
 
 Only a timeout counts as blocked: the policy drops packets, so curl gives up
@@ -167,7 +167,6 @@ Expected result: `networkpolicy.networking.k8s.io/{allow_policy} created`
 app={model_api}`, an ingress rule `To Port: {model_api_port}/TCP` and
 `From: PodSelector: app={allowed_client}`. This proves the rule says what we
 intend; Exercise 4 proves what it does.
-// UNVERIFIED
 
 == Exercise 4: Prove {allowed_client} works and {blocked_client} stays blocked
 
@@ -188,7 +187,6 @@ Expected result: `{allowed_client}: 200` immediately, then
 with exit code 28`. This proves the allow rule is scoped to the source
 label: the compromised neighbor still cannot reach the model API while the
 real application can.
-// UNVERIFIED
 
 In short: one label decides access, and you have evidence for both outcomes.
 
@@ -197,6 +195,7 @@ In short: one label decides access, and you have evidence for both outcomes.
 ====
 [source,bash,subs="attributes+"]
 ----
+(
 probe() {
   local code
   code=$(oc -n {lab_namespace} exec deploy/$1 -- \
@@ -207,6 +206,7 @@ a=$(probe {allowed_client}); b=$(probe {blocked_client})
 test "$a" = "200 0" || { echo "FAIL: {allowed_client} got '$a', want '200 0'"; exit 1; }
 test "$b" = "000 28" || { echo "FAIL: {blocked_client} got '$b', want '000 28' (timeout)"; exit 1; }
 echo PASS
+)
 ----
 ====
 
@@ -240,7 +240,6 @@ Expected result: two `deleted` lines, then `No resources found in
 {lab_namespace} namespace.`, then `{allowed_client}: 200` and
 `{blocked_client}: 200`. This proves the restore is complete and the
 namespace is back to its Module 1 baseline.
-// UNVERIFIED
 
 == Evidence checkpoint
 

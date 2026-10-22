@@ -16,7 +16,6 @@ oc -n {lab_namespace} get networkpolicies
 Expected result: `No resources found in {lab_namespace} namespace.` (any
 policy still present prints a `deleted` line first). This proves the
 namespace is back to the state the lab started from.
-// UNVERIFIED
 
 == Remove the lab environment (cluster owner only)
 

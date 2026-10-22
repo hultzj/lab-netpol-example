@@ -32,7 +32,6 @@ oc version --client
 
 Expected result: a `Client Version:` line, which shows the `oc` CLI is on
 the terminal's path.
-// UNVERIFIED
 
 == Run the pre-flight check
 
@@ -52,7 +51,6 @@ Expected result: `oc whoami` prints
 `system:serviceaccount:{showroom_namespace}:showroom`, the namespace is
 `Active`, and every `auth can-i` line prints `yes`. Those are the only
 permissions the exercises use.
-// UNVERIFIED
 
 == Access details
 
