@@ -22,6 +22,8 @@ spec:
           content:
             repoUrl: {{ .Values.gitops.repoUrl | quote }}
             repoRef: {{ .Values.gitops.revision | quote }}
+          terminal:
+            image: {{ .Values.showroom.terminalImage | quote }}
         deployer:
           domain: {{ .Values.deployer.domain | quote }}
         demo:

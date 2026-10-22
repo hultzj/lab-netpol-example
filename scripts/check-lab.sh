@@ -38,6 +38,11 @@ for page in "$pages"/*.adoc; do
   ' "$page" >&2 || failed=1
 done
 
+# Argo CD consumes these charts straight from main, so they must render.
+for chart in automation/argocd automation/argocd/components/*/; do
+  helm template lab "$chart" --set deployer.domain=apps.example.com >/dev/null || fail "$chart does not render"
+done
+
 # A defined attribute still shown as {name} in the HTML was never substituted:
 # its block lacks subs="attributes+" (Asciidoctor does not warn about that).
 if [[ ! -d www ]]; then

@@ -5,6 +5,8 @@ set -uo pipefail
 GITOPS_NS=${GITOPS_NS:-openshift-gitops}
 SHOWROOM_NS=${SHOWROOM_NS:-showroom}
 LAB_NS=${LAB_NS:-netpol-demo}
+# The parent Application name; children are <LAB_APP>-showroom and <LAB_APP>-prereqs.
+LAB_APP=${LAB_APP:-lab-netpol-sample}
 # Participants run every step as this identity; check as it, not as the facilitator.
 TERMINAL_SA="system:serviceaccount:${SHOWROOM_NS}:showroom"
 failed=0
@@ -26,14 +28,14 @@ apps_synced_healthy() {
     -l demo.redhat.com/application=field-content \
     -o jsonpath='{range .items[*]}{.metadata.name} {.status.sync.status}/{.status.health.status}{"\n"}{end}') || return 1
   # Both children must exist, and every Application must be Synced/Healthy.
-  grep -q -- '-showroom ' <<<"$apps" && grep -q -- '-prereqs ' <<<"$apps" &&
+  grep -q "^$LAB_APP-showroom " <<<"$apps" && grep -q "^$LAB_APP-prereqs " <<<"$apps" &&
     ! grep -qv ' Synced/Healthy$' <<<"$apps"
 }
 
 showroom_answers() {
   local host
   host=$(oc -n "$SHOWROOM_NS" get route showroom -o jsonpath='{.spec.host}') || return 1
-  curl -fsk -o /dev/null "https://$host"
+  curl -fsk --max-time 10 -o /dev/null "https://$host"
 }
 
 no_networkpolicies() {
