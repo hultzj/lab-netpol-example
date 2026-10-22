@@ -13,7 +13,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/hultzj/lab-netpol-sample.git
+    repoURL: https://github.com/hultzj/lab-netpol-example.git
     targetRevision: main
     path: automation/argocd
     helm:

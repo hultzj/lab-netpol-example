@@ -1,7 +1,7 @@
 ---
 site:
   title: "Default-Deny Networking for an AI Application Namespace"
-  url: https://hultzj.github.io/lab-netpol-sample
+  url: https://hultzj.github.io/lab-netpol-example
   start_page: modules::index.adoc
 
 content:

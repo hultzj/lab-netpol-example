@@ -19,7 +19,7 @@ Working document. Not rendered by Antora.
 - Tenancy (dedicated cluster per participant, or shared with per-user namespaces):
   dedicated cluster per participant. One lab namespace, `netpol-demo`.
 - Test cluster and git repo URL: test cluster exists, not contacted while
-  drafting. Argo CD syncs `https://github.com/hultzj/lab-netpol-sample.git`,
+  drafting. Argo CD syncs `https://github.com/hultzj/lab-netpol-example.git`,
   branch `main`, path `automation/argocd`.
 
 ## Lab map

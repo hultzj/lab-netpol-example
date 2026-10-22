@@ -7,7 +7,7 @@ can skip this page.
 == Provision
 
 *RHDP:* order the Field Content CI with this repository's URL
-(`https://github.com/hultzj/lab-netpol-sample.git`) and the path
+(`https://github.com/hultzj/lab-netpol-example.git`) and the path
 `automation/argocd`. The order deploys the Showroom guide and the lab
 prerequisites through OpenShift GitOps.
 

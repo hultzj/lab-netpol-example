@@ -1,6 +1,6 @@
 # Repository Argo CD syncs the children from (this lab's repo).
 gitops:
-  repoUrl: https://github.com/hultzj/lab-netpol-sample.git
+  repoUrl: https://github.com/hultzj/lab-netpol-example.git
   revision: main
   basePath: automation/argocd
 
