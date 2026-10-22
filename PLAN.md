@@ -115,3 +115,11 @@ Working document. Not rendered by Antora.
 - Participants create the NetworkPolicies; they are not in the chart, so
   Argo CD does not track, revert, or prune them, and no `ignoreDifferences`
   is needed.
+- The Showroom terminal gets a custom Role in `netpol-demo` (read pods,
+  services, deployments, events, the namespace; `pods/exec`; manage
+  NetworkPolicies), not ClusterRole `edit`. `edit` would let the participant
+  relabel `other-app` as `frontend`, which is exactly the bypass the
+  reference page warns about.
+- The mermaid diagram on the Module 2 page uses literal names: the pinned
+  mermaid extension (0.0.9) applies `subs=` to the string of the subs value,
+  not to the diagram source, so attributes cannot be used there.

@@ -5,7 +5,28 @@ metadata:
   labels:
     demo.redhat.com/application: field-content
 ---
-# The Showroom terminal runs as this ServiceAccount; grant only what the exercises need.
+# The Showroom terminal runs as the showroom ServiceAccount. This Role is what the
+# exercises use and no more: read the workloads, exec into pods, manage NetworkPolicies.
+# Not ClusterRole edit, which would also let the terminal relabel pods and bypass the policy.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: showroom-terminal
+  namespace: {{ .Values.lab.namespace }}
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces", "pods", "services", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create", "get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -13,8 +34,8 @@ metadata:
   namespace: {{ .Values.lab.namespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: edit
+  kind: Role
+  name: showroom-terminal
 subjects:
   - kind: ServiceAccount
     name: showroom

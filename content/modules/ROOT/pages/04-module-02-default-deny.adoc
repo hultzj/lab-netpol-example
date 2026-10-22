@@ -1,76 +1,252 @@
-= Module 1: CHANGE-ME
-:navtitle: CHANGE-ME
+= Module 2: Default-deny, then allow one client
+:navtitle: Default-deny, then allow one client
 
-// Why this matters, ending on the customer question this module answers.
-CHANGE-ME
+Module 1 showed that a compromised neighbor can call the model API. The
+standard answer is default-deny: isolate every pod, then allow only the
+paths the application needs. The claim is easy to write and easy to get
+wrong, so this module proves both halves: the allowed caller still works,
+and the other caller is still blocked. It answers the customer question:
+_can we block the compromised pod without breaking the real application,
+and prove it?_
 
-In this module you CHANGE-ME.
+In this module you apply default-deny ingress, prove both clients are
+blocked, allow `{allowed_client}` to the model API port, prove only
+`{allowed_client}` gets through, and then restore the baseline.
 
-.New to CHANGE-ME?
+.New to these terms?
 [%collapsible]
 ====
-// Up to five terms, one sentence each.
-* *CHANGE-ME* — CHANGE-ME
+* *Ingress* — traffic arriving at a pod.
+* *Default-deny* — a policy that selects every pod in a namespace and allows nothing, so all ingress is dropped until another policy allows it.
+* *`podSelector: {}`* — an empty selector, which matches every pod in the policy's namespace.
+* *Additive policies* — when several policies select a pod, the allowed traffic is the union of what each allows; no policy can subtract from another.
 ====
 
 == Technical context
 
-// The mechanism the exercises prove. Define jargon in parentheses at first use.
-CHANGE-ME
+You will create two NetworkPolicies. Argo CD did not create them and does not
+track them, so it neither reverts nor prunes them.
+
+// The mermaid extension does not apply attribute subs (its subs= handling is broken), so names are literal here.
+[mermaid]
+....
+flowchart LR
+  F["frontend<br/>app=frontend"] -->|"TCP 8080: allowed by allow-frontend-to-model-api"| M["model-api<br/>app=model-api"]
+  O["other-app<br/>app=other-app"] -.->|"dropped by default-deny-ingress"| M
+....
+
+* `{deny_policy}` selects every pod (`podSelector: {}`), lists only
+  `Ingress` in `policyTypes`, and has no `ingress` rules. Every pod in the
+  namespace becomes isolated for ingress and nothing is allowed in.
+* `{allow_policy}` selects only `app={model_api}` and allows ingress from
+  pods labeled `app={allowed_client}` in the same namespace, on TCP port
+  {model_api_port} only.
+
+OVN-Kubernetes drops packets that no policy allows; it does not send a
+refusal. A blocked `curl` therefore waits for its three-second timeout and
+reports status `000` with exit code 28. Kubelet health checks still reach the
+pods, so the pods stay `Ready` throughout.
 
 == Learning objectives
 
-* CHANGE-ME
+* Apply a default-deny ingress NetworkPolicy to a namespace.
+* Prove that default-deny blocks the legitimate caller as well as the compromised one.
+* Write an allow rule scoped to one source label and one port.
+* Prove the allow rule is narrow by showing the other client stays blocked, then restore the baseline.
 
-== Exercise 1: CHANGE-ME
+== Exercise 1: Apply default-deny ingress
 
-// What state changes, and why.
-CHANGE-ME
+Create the policy that isolates every pod in the namespace. `oc apply` is
+safe to repeat.
 
 [source,bash,role="execute",subs="attributes+"]
 ----
-oc -n {lab_namespace} get pods
+oc apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {deny_policy}
+  namespace: {lab_namespace}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+EOF
+oc -n {lab_namespace} get networkpolicies
 ----
 
-Expected result: CHANGE-ME — the observed field or value, and what it proves.
+Expected result: `networkpolicy.networking.k8s.io/{deny_policy} created`
+(or `unchanged` on a re-run), then one row `{deny_policy}` whose
+`POD-SELECTOR` column is `<none>`, meaning it selects all pods. This proves
+the policy exists; it does not yet prove anything is blocked.
 // UNVERIFIED
 
-In short: CHANGE-ME
+== Exercise 2: Prove both clients are blocked
+
+Send the Module 1 request from both clients again.
+
+[source,bash,role="execute",subs="attributes+"]
+----
+for client in {allowed_client} {blocked_client}; do
+  printf '%s: ' "$client"
+  oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}\n' http://{model_api}:{model_api_port}{model_api_path}
+done
+----
+
+Expected result: each line takes about three seconds and prints
+`{allowed_client}: 000` and `{blocked_client}: 000`, each followed by
+`command terminated with exit code 28` (curl's timeout). Module 1 showed the
+same requests returned `200` and that a reachable server always returns a
+status code, so this proves the policy now drops traffic from both clients,
+including the legitimate one.
+// UNVERIFIED
+
+In short: default-deny has no exceptions until you write them; the real application is now broken too.
 
 .The scripted assertion for this exercise
 [%collapsible]
 ====
 [source,bash,subs="attributes+"]
 ----
-test "$(oc -n {lab_namespace} get pods --no-headers | wc -l)" -gt 0
+for client in {allowed_client} {blocked_client}; do
+  code=$(oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path})
+  test "$code" = 000 || { echo "FAIL: $client got '$code', want 000"; exit 1; }
+done
+echo PASS
 ----
+
+An empty `code` (for example, the pod is missing and `oc exec` failed) also
+fails the assertion, so a broken probe cannot pass as "blocked".
 ====
 
-GUI view: CHANGE-ME where the same evidence appears in the OpenShift Console tab.
+== Exercise 3: Allow only {allowed_client} to the model API port
 
-== Exercise 2: CHANGE-ME the negative control
-
-// The action that must fail, or a break-and-restore.
-CHANGE-ME
+Add a second policy. It selects the model API pod and allows one source
+label on one port. Because policies are additive, this opens exactly that
+path and nothing else.
 
 [source,bash,role="execute",subs="attributes+"]
 ----
-oc -n {lab_namespace} get pods
+oc apply -f - <<'EOF'
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {allow_policy}
+  namespace: {lab_namespace}
+spec:
+  podSelector:
+    matchLabels:
+      app: {model_api}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: {allowed_client}
+      ports:
+        - protocol: TCP
+          port: {model_api_port}
+EOF
+oc -n {lab_namespace} describe networkpolicy {allow_policy}
 ----
 
-Expected result: CHANGE-ME
+Expected result: `networkpolicy.networking.k8s.io/{allow_policy} created`
+(or `unchanged`), and the `describe` output shows `PodSelector:
+app={model_api}`, an ingress rule `To Port: {model_api_port}/TCP` and
+`From: PodSelector: app={allowed_client}`. This proves the rule says what we
+intend; Exercise 4 proves what it does.
+// UNVERIFIED
+
+== Exercise 4: Prove {allowed_client} works and {blocked_client} stays blocked
+
+The matching deny for the new allow: the same request to the same server
+and port, from a pod without the allowed label.
+
+[source,bash,role="execute",subs="attributes+"]
+----
+for client in {allowed_client} {blocked_client}; do
+  printf '%s: ' "$client"
+  oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}\n' http://{model_api}:{model_api_port}{model_api_path}
+done
+----
+
+Expected result: `{allowed_client}: 200` immediately, then
+`{blocked_client}: 000` after about three seconds with `command terminated
+with exit code 28`. This proves the allow rule is scoped to the source
+label: the compromised neighbor still cannot reach the model API while the
+real application can.
+// UNVERIFIED
+
+In short: one label decides access, and you have evidence for both outcomes.
+
+.The scripted assertion for this exercise
+[%collapsible]
+====
+[source,bash,subs="attributes+"]
+----
+probe() {
+  oc -n {lab_namespace} exec deploy/$1 -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path}
+}
+a=$(probe {allowed_client}); b=$(probe {blocked_client})
+test "$a" = 200 || { echo "FAIL: {allowed_client} got '$a', want 200"; exit 1; }
+test "$b" = 000 || { echo "FAIL: {blocked_client} got '$b', want 000"; exit 1; }
+echo PASS
+----
+====
+
+GUI view: in the OpenShift Console tab, open *Networking → NetworkPolicies*
+in the `{lab_namespace}` project and select `{allow_policy}` to see the same
+pod selector, source, and port.
+
+== Exercise 5: Restore the open baseline
+
+Remove both policies and prove access returns for both clients. This shows
+the change in behavior came from the policies, not from the workloads.
+
+[CAUTION]
+====
+This removes the protection you just proved. It returns the namespace to
+the state Module 1 started from.
+====
+
+[source,bash,role="execute",subs="attributes+"]
+----
+oc -n {lab_namespace} delete networkpolicy {allow_policy} {deny_policy} --ignore-not-found
+oc -n {lab_namespace} get networkpolicies
+for client in {allowed_client} {blocked_client}; do
+  printf '%s: ' "$client"
+  oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}\n' http://{model_api}:{model_api_port}{model_api_path}
+done
+----
+
+Expected result: two `deleted` lines, then `No resources found in
+{lab_namespace} namespace.`, then `{allowed_client}: 200` and
+`{blocked_client}: 200`. This proves the restore is complete and the
+namespace is back to its Module 1 baseline.
 // UNVERIFIED
 
 == Evidence checkpoint
 
 Before continuing, verify that you can answer:
 
-* CHANGE-ME?
+* After `{deny_policy}` was applied, why did `{allowed_client}` fail too?
+* Which fields in `{allow_policy}` decide that `{blocked_client}` stays blocked?
+* What is the evidence that the allow rule is narrow, not just that it works?
+* What does this lab not tell you about a compromised `{blocked_client}`?
 
 .Answer key
 [%collapsible]
 ====
-* CHANGE-ME
+* `{deny_policy}` selects every pod and allows no ingress. Until another policy allows a path, nothing reaches the model API, including the legitimate caller (Exercise 2).
+* `spec.podSelector` (`app={model_api}`), the `from` pod selector (`app={allowed_client}`), and the port (`{model_api_port}/TCP`). `{blocked_client}` does not carry the `app={allowed_client}` label, so no policy allows its traffic.
+* The paired result in Exercise 4: same server, same port, same moment, `200` from `{allowed_client}` and `000` from `{blocked_client}`, with the Module 1 `404` control showing `000` is a network result.
+* What it can send *out*: the lab controls ingress only, so egress to other namespaces, the Kubernetes API, or the internet is not restricted or tested here.
 ====
 
 Proceed to xref:90-cleanup.adoc[Cleanup].

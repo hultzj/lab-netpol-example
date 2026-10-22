@@ -5,3 +5,16 @@ showroom:
   namespace: showroom
 deployer:
   domain: ""
+
+# Exact tag plus index digest, confirmed on registry.access.redhat.com 2026-10-22.
+images:
+  modelApi: registry.access.redhat.com/ubi9/httpd-24:9.8-1792425938@sha256:a90a0ae3e1356cd740fb5e9dcfc298e912123f12f1078295d7038149d2c6684b
+  client: registry.access.redhat.com/ubi9/ubi-minimal:9.8-1791898448@sha256:c4c285d42941ebb2bd4da878479008e1e4536bb599aad1dbe568f89de9053661
+
+# The guide's attributes (content/antora.yml) use the same names; change both together.
+modelApi:
+  name: model-api
+  port: 8080
+clients:
+  - frontend   # keeps access in Module 2
+  - other-app  # loses access in Module 2

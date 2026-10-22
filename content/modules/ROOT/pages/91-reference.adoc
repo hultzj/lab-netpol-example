@@ -7,8 +7,20 @@
 |===
 | Project | Use it for
 
-| link:https://CHANGE-ME[CHANGE-ME^]
-| CHANGE-ME
+| link:https://kubernetes.io/docs/concepts/services-networking/network-policies/[Kubernetes NetworkPolicy^]
+| The API object and its semantics: isolation, additive allow rules, selectors.
+
+| link:https://docs.redhat.com/en/documentation/openshift_container_platform/[OpenShift Container Platform networking^]
+| How OpenShift and OVN-Kubernetes enforce NetworkPolicy, including default-deny examples.
+
+| link:https://docs.redhat.com/en/documentation/red_hat_openshift_gitops/[Red Hat OpenShift GitOps^]
+| Argo CD on OpenShift, which deploys and keeps this lab's namespace and workloads.
+
+| link:https://github.com/rhpds/field-sourced-content-template[rhpds/field-sourced-content-template^]
+| The RHDP field-content chart layout and the Showroom component this lab references.
+
+| link:https://catalog.redhat.com/software/base-images[Red Hat Universal Base Images^]
+| The `httpd-24` and `ubi-minimal` images used for the model API and the clients.
 |===
 
 == Evidence interpretation
@@ -17,15 +29,48 @@
 |===
 | Topic | Supported interpretation | Required evidence
 
-| CHANGE-ME
-| CHANGE-ME
-| CHANGE-ME
+| Baseline exposure
+| With no NetworkPolicy, any pod in the namespace can call the model API.
+| `oc get networkpolicies` shows none, and both clients get `200` (Module 1).
+
+| Probe validity
+| `000` means no HTTP answer, not an application error.
+| The `404` control from a reachable server (Module 1, Exercise 4).
+
+| Default-deny effect
+| Default-deny ingress blocks every caller, including the legitimate one.
+| Both clients get `000` after `{deny_policy}` exists (Module 2, Exercise 2).
+
+| Allow-rule scope
+| The allow rule admits only pods labeled `app={allowed_client}` on port {model_api_port}.
+| `{allowed_client}` gets `200` while `{blocked_client}` gets `000` in the same run (Module 2, Exercise 4).
+
+| Cause of the change
+| The policies, not the workloads, changed reachability.
+| Both clients return to `200` after the policies are deleted (Module 2, Exercise 5).
 |===
 
 == What this lab does not prove
 
-* CHANGE-ME
+* *Egress control.* Only ingress is restricted. What a compromised pod can
+  send to other namespaces, the Kubernetes API, or the internet is neither
+  restricted nor tested.
+* *Cross-namespace callers.* Only clients inside `{lab_namespace}` are
+  tested. The default-deny policy also isolates the model API from other
+  namespaces, but no request from another namespace is made here.
+* *Other ports and protocols.* Only TCP {model_api_port} to the model API is
+  tested; no other port on the model API pod is probed.
+* *Label integrity.* Anyone who can set the `app={allowed_client}` label on
+  a pod gets the same access. Who may create or label pods in the namespace
+  is an RBAC question this lab does not test.
+* *Other network plugins or cluster-wide policies.* Results are for
+  OVN-Kubernetes with no AdminNetworkPolicy or BaselineAdminNetworkPolicy on
+  the tested cluster.
+* *Application-layer authorization.* A NetworkPolicy decides which pods may
+  connect, not which requests or users the model API should serve.
 
 == Further reading
 
-* link:https://CHANGE-ME[CHANGE-ME^]
+* link:https://kubernetes.io/docs/concepts/services-networking/network-policies/#default-policies[Kubernetes: default policies^]
+* link:https://docs.redhat.com/en/documentation/openshift_container_platform/[OpenShift documentation: Network security and network policy^]
+* link:https://github.com/ahmetb/kubernetes-network-policy-recipes[Kubernetes network policy recipes^]

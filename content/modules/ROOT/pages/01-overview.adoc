@@ -3,8 +3,14 @@
 
 == Control questions
 
-// The questions a customer asks before adopting this; each module answers one with evidence.
-* *CHANGE-ME?*
+* *If a pod next to our AI model API is compromised, can it call the model API?*
+  Module 1 shows that with no NetworkPolicy it can, with a `200` from the
+  pod that should not have access.
+* *Can we block that pod without breaking the application that legitimately
+  calls the model?* Module 2 shows default-deny blocks both callers, then
+  one allow rule restores only the legitimate one.
+* *Can we prove it, rather than trust the YAML?* Every claim in this lab is
+  a request made from inside the client pod, with the HTTP status recorded.
 
 == The stack
 
@@ -12,24 +18,65 @@
 |===
 | Layer | Component | Responsibility
 
-| CHANGE-ME
-| CHANGE-ME
-| CHANGE-ME
+| Delivery
+| OpenShift GitOps (Argo CD)
+| Creates the `{lab_namespace}` namespace, the `{model_api}` Deployment and
+Service, and the `{allowed_client}` and `{blocked_client}` client
+Deployments from Git, and keeps them as declared.
+
+| Workload
+| `{model_api}` (Red Hat UBI httpd)
+| Stands in for an AI model API: answers `GET {model_api_path}` with a JSON
+list of models on port {model_api_port}.
+
+| Workload
+| `{allowed_client}` and `{blocked_client}` (Red Hat UBI minimal)
+| Idle pods with `curl`. `{allowed_client}` is the application that should
+call the model; `{blocked_client}` plays the compromised neighbor.
+
+| Policy
+| Kubernetes NetworkPolicy
+| Declares which pods may receive traffic from which pods, on which ports.
+
+| Enforcement
+| OVN-Kubernetes
+| Turns NetworkPolicies into flow rules on each node and drops traffic they
+do not allow.
 |===
 
-== CHANGE-ME the one distinction to understand
+== The one distinction to understand
 
-CHANGE-ME
+A NetworkPolicy does not block anything by itself. A pod is isolated for
+ingress only once *some* policy selects it; from then on, only traffic that
+*some* policy allows reaches it. Policies add allowances; they never
+subtract them. That is why the lab first applies a policy that selects every
+pod and allows nothing (default-deny), and then adds a second policy that
+allows exactly one path.
 
 == Lab progression
 
-=== 1. CHANGE-ME
+=== 1. Verify the open baseline
 
-CHANGE-ME
+Inspect what Argo CD deployed, confirm there is no NetworkPolicy, and prove
+both clients get `200` from the model API. A request for a path that does not
+exist returns `404`, which shows the probe reports what the server said.
+
+=== 2. Default-deny, then allow one client
+
+Apply default-deny ingress and prove both clients now get no answer (`000`).
+Add an allow rule for `{allowed_client}` on port {model_api_port}, prove it
+gets `200` while `{blocked_client}` still gets `000`, then remove both
+policies and prove access is back.
 
 == Interpretation guardrails
 
-// What the lab does not claim, and the evidence needed before claiming it.
-CHANGE-ME
+* The lab controls *ingress* to pods in `{lab_namespace}`. It does not limit
+  what a compromised pod can send out of the namespace (egress), such as
+  calls to the internet, other namespaces, or the Kubernetes API.
+* A `000` result means no HTTP answer arrived within the timeout. Together
+  with the `404` control and the restore step, that is evidence of a network
+  block, not proof of which component dropped the packet.
+* The result holds for OVN-Kubernetes on the tested cluster. Other network
+  plugins, or clusters with extra admin network policies, need their own run.
 
 Continue with xref:02-details.adoc[Prerequisites and Environment].

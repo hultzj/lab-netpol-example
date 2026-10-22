@@ -10,14 +10,29 @@
 | The Showroom terminal tab (`oc` is already logged in) and the OpenShift
 Console tab.
 
-| CHANGE-ME
-| CHANGE-ME
+| Facilitator
+| A cluster-admin login to each participant cluster, to provision and verify
+the lab (see xref:92-facilitator-guide.adoc[Facilitator Guide]).
 |===
 
 Provided by the facilitator:
 
-* An OpenShift cluster with the lab deployed through OpenShift GitOps.
-* CHANGE-ME
+* A dedicated {ocp_version} cluster per participant, using the default
+  OVN-Kubernetes network plugin, with the lab deployed through OpenShift
+  GitOps.
+* The `{lab_namespace}` namespace with the `{model_api}`, `{allowed_client}`,
+  and `{blocked_client}` Deployments running and no NetworkPolicy in it.
+
+== Verify the tools
+
+[source,bash,role="execute",subs="attributes+"]
+----
+oc version --client
+----
+
+Expected result: a `Client Version:` line, which shows the `oc` CLI is on
+the terminal's path.
+// UNVERIFIED
 
 == Run the pre-flight check
 
@@ -27,12 +42,16 @@ Run these in the Showroom terminal:
 ----
 oc whoami
 oc get namespace {lab_namespace}
-oc auth can-i CHANGE-ME -n {lab_namespace}
+oc auth can-i get pods -n {lab_namespace}
+oc auth can-i create pods --subresource=exec -n {lab_namespace}
+oc auth can-i create networkpolicies.networking.k8s.io -n {lab_namespace}
+oc auth can-i delete networkpolicies.networking.k8s.io -n {lab_namespace}
 ----
 
 Expected result: `oc whoami` prints
 `system:serviceaccount:{showroom_namespace}:showroom`, the namespace is
-`Active`, and every `auth can-i` line prints `yes`.
+`Active`, and every `auth can-i` line prints `yes`. Those are the only
+permissions the exercises use.
 // UNVERIFIED
 
 == Access details
@@ -44,8 +63,11 @@ Expected result: `oc whoami` prints
 | Lab namespace
 | `{lab_namespace}`
 
+| Model API Service
+| `http://{model_api}:{model_api_port}{model_api_path}` (inside the namespace)
+
 | OpenShift Console
 | link:https://console-openshift-console.{cluster_domain}[console-openshift-console.{cluster_domain}^]
 |===
 
-Proceed to xref:03-module-01-CHANGE-ME.adoc[Module 1: CHANGE-ME].
+Proceed to xref:03-module-01-verify-baseline.adoc[Module 1: Verify the open baseline].

@@ -1,20 +1,34 @@
-= CHANGE-ME lab title
+= Default-Deny Networking for an AI Application Namespace
 :navtitle: Introduction
 
-CHANGE-ME one-line tagline.
+Prove, on a live cluster, which pods can reach an AI model API, before and after a default-deny NetworkPolicy.
 
-// What the lab examines, and why it matters outside the lab.
-CHANGE-ME
+An AI application's model API is a high-value target. If any other pod in
+its namespace is compromised, the attacker's first question is what that pod
+can reach on the cluster network. On OpenShift, the answer with no
+NetworkPolicy is "everything in the namespace". This lab shows that answer
+with evidence, then changes it with a default-deny policy and one narrow
+allow rule, and proves the result from both sides: the allowed caller works
+and the other caller does not.
 
 The lab progresses through these tasks:
 
-. CHANGE-ME
+. Inspect a demo namespace that OpenShift GitOps deployed: a small HTTP
+  model API and two client pods.
+. Prove both clients reach the model API while no NetworkPolicy exists.
+. Apply a default-deny ingress policy and prove both clients are blocked.
+. Allow one client to the model API port and prove only that client gets
+  through.
+. Remove the policies and prove access is restored.
 
 == Learning objectives
 
 By the end of the lab you will be able to:
 
-* CHANGE-ME
+* Explain why a namespace with no NetworkPolicy allows all pod-to-pod traffic.
+* Apply a default-deny ingress NetworkPolicy and show its effect with a timed request.
+* Write an allow rule that selects one client by label and one port.
+* Tell a network block (`000`, timeout) from an application error (`404`) in your evidence.
 
 == How to run the lab
 
@@ -30,17 +44,35 @@ xref:92-facilitator-guide.adoc[Facilitator Guide].
 |===
 | Module | Outcome | Time
 
-| 1. CHANGE-ME
-| CHANGE-ME
-| CHANGE-ME min
+| Introduction and pre-flight
+| The Showroom terminal has the permissions the exercises need
+| 5 min
+
+| 1. Verify the open baseline
+| Both clients reach the model API; a `404` control shows the probe can tell
+an application answer from a network block
+| 15 min
+
+| 2. Default-deny, then allow one client
+| Both clients blocked; one narrow allow restores only `{allowed_client}`;
+`{blocked_client}` stays blocked; access restored
+| 25 min
 |===
 
-*Total:* about CHANGE-ME minutes.
+*Total:* about 45 minutes.
 
 == Technical model
 
-// Each layer in one sentence, then what no single layer covers on its own.
-CHANGE-ME
+* *OpenShift GitOps (Argo CD)* deploys the lab namespace, the model API, and
+  the two clients from this lab's Git repository.
+* *Kubernetes NetworkPolicy* declares which pods may send traffic to which
+  pods and ports; it is only a declaration.
+* *OVN-Kubernetes*, the default {ocp_version} network plugin, enforces those
+  declarations on every node.
+
+No layer answers the customer question on its own: GitOps proves what was
+deployed, a policy object proves what was intended, and only a request from
+a real client pod proves what the network allows.
 
 == Start here
 

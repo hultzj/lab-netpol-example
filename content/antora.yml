@@ -1,5 +1,5 @@
 name: modules
-title: "CHANGE-ME lab title"
+title: "Default-Deny Networking for an AI Application Namespace"
 version: ~
 nav:
   - modules/ROOT/nav.adoc
@@ -14,5 +14,13 @@ asciidoc:
     guid: '%GUID%'
     cluster_domain: 'apps.cluster.example.com'
     # Lab attributes: every name or version used on more than one page.
-    lab_namespace: 'CHANGE-ME'
+    lab_namespace: 'netpol-demo'
     showroom_namespace: 'showroom'
+    model_api: 'model-api'
+    model_api_port: '8080'
+    model_api_path: '/v1/models'
+    allowed_client: 'frontend'
+    blocked_client: 'other-app'
+    deny_policy: 'default-deny-ingress'
+    allow_policy: 'allow-frontend-to-model-api'
+    ocp_version: 'OpenShift 4.x or 5.x'

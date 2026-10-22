@@ -6,12 +6,14 @@ can skip this page.
 
 == Provision
 
-*RHDP:* order the Field Content CI with this repository's URL and the path
+*RHDP:* order the Field Content CI with this repository's URL
+(`https://github.com/hultzj/lab-netpol-sample.git`) and the path
 `automation/argocd`. The order deploys the Showroom guide and the lab
 prerequisites through OpenShift GitOps.
 
-*Any other OpenShift cluster* with OpenShift GitOps installed, from a
-cluster-admin shell in a checkout of this repository:
+*Any other {ocp_version} cluster* using OVN-Kubernetes, with OpenShift
+GitOps installed, from a cluster-admin shell in a checkout of this
+repository:
 
 [source,bash]
 ----
@@ -29,8 +31,20 @@ make -C automation verify
 ----
 
 Every line must print `PASS`. Fix any `FAIL` before participants arrive.
+The checks cover: the lab Applications are Synced/Healthy, the Showroom
+route answers, the three Deployments are available, the namespace has no
+NetworkPolicy, and both clients get `200` from the model API.
 
 == Day of class
 
 * Share the Showroom URL: `oc -n {showroom_namespace} get route showroom`.
-* CHANGE-ME
+* Each participant has a dedicated cluster; nothing is shared between
+  participants.
+* If a participant's Module 2 results look wrong, check for leftover
+  policies first: `oc -n {lab_namespace} get networkpolicies`. The cleanup
+  page removes them.
+* Blocked requests take about three seconds each by design (`curl -m 3`).
+  A blocked loop over both clients takes about six seconds.
+* Re-running `make -C automation verify` after class confirms the
+  participant restored the baseline (the NetworkPolicy check fails if they
+  did not).

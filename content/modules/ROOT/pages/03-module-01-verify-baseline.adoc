@@ -1,76 +1,152 @@
-= Module 1: CHANGE-ME
-:navtitle: CHANGE-ME
+= Module 1: Verify the open baseline
+:navtitle: Verify the open baseline
 
-// Why this matters, ending on the customer question this module answers.
-CHANGE-ME
+Before you restrict a network, you need evidence of what it allows today.
+Otherwise a later "blocked" result proves nothing: the path may never have
+worked. This module records the starting point for the customer question:
+_if a pod next to our model API is compromised, can it call the model API?_
 
-In this module you CHANGE-ME.
+In this module you inspect what OpenShift GitOps deployed, confirm no
+NetworkPolicy exists, and call the model API from both client pods.
 
-.New to CHANGE-ME?
+.New to these terms?
 [%collapsible]
 ====
-// Up to five terms, one sentence each.
-* *CHANGE-ME* — CHANGE-ME
+* *NetworkPolicy* — a Kubernetes object that lists which pods may send traffic to the pods it selects.
+* *Label selector* — a match on pod labels such as `app={allowed_client}`; policies pick pods this way, not by name or IP address.
+* *OVN-Kubernetes* — the default OpenShift network plugin, which enforces NetworkPolicies on each node.
+* *Argo CD Application* — an OpenShift GitOps object that keeps cluster resources matching a path in Git.
 ====
 
 == Technical context
 
-// The mechanism the exercises prove. Define jargon in parentheses at first use.
-CHANGE-ME
+Argo CD synced three Deployments and one Service into `{lab_namespace}`. The
+`{model_api}` pod runs Red Hat's UBI httpd image and serves a static JSON
+file at `{model_api_path}` on port {model_api_port}, reached through a
+Service (a stable DNS name and virtual IP in front of the pod) of the same
+name. The `{allowed_client}` and `{blocked_client}` pods run the UBI minimal
+image, which includes `curl`, and otherwise sleep.
+
+Kubernetes treats a pod that no NetworkPolicy selects as non-isolated: it
+accepts traffic from any pod on the cluster network. So the expected baseline
+is that both clients reach the model API.
+
+You will run every request with `oc exec` inside the client pod. The request
+then starts from the client pod's own network identity, exactly as a
+compromised process in that pod would send it. The Showroom terminal is never
+on the tested path.
 
 == Learning objectives
 
-* CHANGE-ME
+* Identify the labels that NetworkPolicies will use to select the model API and its clients.
+* Show that a namespace with no NetworkPolicy allows both clients to reach the model API.
+* Use a negative control to show the probe reports the server's own answer.
 
-== Exercise 1: CHANGE-ME
+== Exercise 1: Inspect the GitOps-deployed namespace
 
-// What state changes, and why.
-CHANGE-ME
+List what Argo CD deployed, with each object's `app` label as a column. The
+`app` label is what the policies in Module 2 select on.
 
 [source,bash,role="execute",subs="attributes+"]
 ----
-oc -n {lab_namespace} get pods
+oc -n {lab_namespace} get deployments,services,pods -L app
 ----
 
-Expected result: CHANGE-ME — the observed field or value, and what it proves.
+Expected result: three Deployments (`{model_api}`, `{allowed_client}`,
+`{blocked_client}`) each `1/1` ready, one Service `{model_api}` on port
+`{model_api_port}/TCP`, and three pods in `Running` whose `APP` column reads
+`{model_api}`, `{allowed_client}`, and `{blocked_client}`. This proves the
+GitOps sync produced the workloads and labels the rest of the lab relies on.
 // UNVERIFIED
 
-In short: CHANGE-ME
+In short: the policies will select pods by these `app` labels, not by name.
+
+GUI view: in the OpenShift Console tab, open *Workloads → Topology* for the
+`{lab_namespace}` project to see the same three Deployments.
+
+== Exercise 2: Confirm there is no NetworkPolicy
+
+A pod is only isolated once a policy selects it. Check that nothing selects
+any pod in the namespace yet.
+
+[source,bash,role="execute",subs="attributes+"]
+----
+oc -n {lab_namespace} get networkpolicies
+----
+
+Expected result: `No resources found in {lab_namespace} namespace.` This
+proves every pod in the namespace is non-isolated and accepts traffic from
+any pod.
+// UNVERIFIED
+
+== Exercise 3: Call the model API from both clients
+
+Send the same request from each client. `-m 3` gives up after three seconds;
+`-w` prints only the HTTP status code.
+
+[source,bash,role="execute",subs="attributes+"]
+----
+for client in {allowed_client} {blocked_client}; do
+  printf '%s: ' "$client"
+  oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}\n' http://{model_api}:{model_api_port}{model_api_path}
+done
+----
+
+Expected result: `{allowed_client}: 200` and `{blocked_client}: 200`. This
+proves the pod playing the compromised neighbor reaches the model API as
+easily as the legitimate caller.
+// UNVERIFIED
+
+In short: with no NetworkPolicy, any pod in the namespace can call the model API.
 
 .The scripted assertion for this exercise
 [%collapsible]
 ====
 [source,bash,subs="attributes+"]
 ----
-test "$(oc -n {lab_namespace} get pods --no-headers | wc -l)" -gt 0
+for client in {allowed_client} {blocked_client}; do
+  code=$(oc -n {lab_namespace} exec deploy/$client -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path})
+  test "$code" = 200 || { echo "FAIL: $client got '$code', want 200"; exit 1; }
+done
+echo PASS
 ----
 ====
 
-GUI view: CHANGE-ME where the same evidence appears in the OpenShift Console tab.
+== Exercise 4: Negative control — ask for a path the server does not have
 
-== Exercise 2: CHANGE-ME the negative control
-
-// The action that must fail, or a break-and-restore.
-CHANGE-ME
+In Module 2 a blocked request will show `000`, meaning no HTTP answer
+arrived. Before relying on that, show that when the server does answer, the
+probe reports the server's status faithfully, including failures.
 
 [source,bash,role="execute",subs="attributes+"]
 ----
-oc -n {lab_namespace} get pods
+oc -n {lab_namespace} exec deploy/{blocked_client} -- \
+  curl -s -o /dev/null -m 3 -w '%\{http_code\}\n' http://{model_api}:{model_api_port}/v1/does-not-exist
 ----
 
-Expected result: CHANGE-ME
+Expected result: `404`. The request reached the server and the server
+refused the path. This proves a `000` later cannot be an application error:
+an application error comes back as a status code.
 // UNVERIFIED
+
+In short: `200` and `404` both mean "the network let me through"; only `000` means it did not.
 
 == Evidence checkpoint
 
 Before continuing, verify that you can answer:
 
-* CHANGE-ME?
+* Which label will a NetworkPolicy use to pick out the model API pod?
+* Why could `{blocked_client}` reach the model API?
+* What would a `000` result mean, and why does the `404` control matter for interpreting it?
 
 .Answer key
 [%collapsible]
 ====
-* CHANGE-ME
+* `app={model_api}`, shown in the `APP` column in Exercise 1.
+* No NetworkPolicy selects the `{model_api}` pod (Exercise 2), so it accepts traffic from any pod.
+* `000` means no HTTP response arrived before the timeout. The `404` control shows that when the server is reachable it always returns a status code, so `000` points at the network path, not the application.
 ====
 
-Proceed to xref:90-cleanup.adoc[Cleanup].
+Proceed to xref:04-module-02-default-deny.adoc[Module 2: Default-deny, then allow one client].

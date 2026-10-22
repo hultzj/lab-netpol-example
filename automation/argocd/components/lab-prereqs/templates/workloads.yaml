@@ -1,0 +1,105 @@
+# The "model API": static JSON served by UBI httpd (DocumentRoot /var/www/html, port 8080).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.modelApi.name }}-content
+  namespace: {{ .Values.lab.namespace }}
+data:
+  models: |
+    {"object": "list", "data": [{"id": "granite-demo", "object": "model", "owned_by": "lab"}]}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.modelApi.name }}
+  namespace: {{ .Values.lab.namespace }}
+  labels:
+    app: {{ .Values.modelApi.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.modelApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.modelApi.name }}
+    spec:
+      containers:
+        - name: httpd
+          image: {{ .Values.images.modelApi }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.modelApi.port }}
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /v1/models
+              port: http
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          {{- include "lab-prereqs.securityContext" . | nindent 10 }}
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+              readOnly: true
+      volumes:
+        - name: content
+          configMap:
+            name: {{ .Values.modelApi.name }}-content
+            items:
+              - key: models
+                path: v1/models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.modelApi.name }}
+  namespace: {{ .Values.lab.namespace }}
+  labels:
+    app: {{ .Values.modelApi.name }}
+spec:
+  selector:
+    app: {{ .Values.modelApi.name }}
+  ports:
+    - name: http
+      port: {{ .Values.modelApi.port }}
+      targetPort: http
+      protocol: TCP
+{{- range .Values.clients }}
+---
+# Idle client; participants run curl in it with oc exec.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ . }}
+  namespace: {{ $.Values.lab.namespace }}
+  labels:
+    app: {{ . }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ . }}
+  template:
+    metadata:
+      labels:
+        app: {{ . }}
+    spec:
+      terminationGracePeriodSeconds: 1
+      containers:
+        - name: client
+          image: {{ $.Values.images.client }}
+          command: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              memory: 64Mi
+          {{- include "lab-prereqs.securityContext" $ | nindent 10 }}
+{{- end }}

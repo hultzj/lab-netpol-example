@@ -4,7 +4,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: CHANGE-ME-lab
+  name: lab-netpol-sample
   namespace: openshift-gitops
   labels:
     demo.redhat.com/application: field-content
@@ -13,7 +13,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/CHANGE-ME/CHANGE-ME.git
+    repoURL: https://github.com/hultzj/lab-netpol-sample.git
     targetRevision: main
     path: automation/argocd
     helm:

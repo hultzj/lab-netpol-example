@@ -3,24 +3,33 @@
 
 == Remove what you created
 
-// Participant-created resources only; the GitOps-managed prerequisites stay.
+The only resources you created are the two NetworkPolicies. Module 2,
+Exercise 5 already removed them; this step is safe to repeat and confirms
+it. The GitOps-managed namespace and workloads stay.
+
 [source,bash,role="execute",subs="attributes+"]
 ----
-CHANGE-ME
+oc -n {lab_namespace} delete networkpolicy {allow_policy} {deny_policy} --ignore-not-found
+oc -n {lab_namespace} get networkpolicies
 ----
 
-Expected result: CHANGE-ME
+Expected result: `No resources found in {lab_namespace} namespace.` (any
+policy still present prints a `deleted` line first). This proves the
+namespace is back to the state the lab started from.
 // UNVERIFIED
 
 == Remove the lab environment (cluster owner only)
 
 Do not run this on a facilitator-managed cluster. From a cluster-admin shell
-in a checkout of this repository:
+in a checkout of this repository, look first, then delete:
 
-[source,bash]
+[source,bash,subs="attributes+"]
 ----
+make -C automation status
 make -C automation teardown
+oc get namespace {lab_namespace} {showroom_namespace} --ignore-not-found
 ----
 
-Deleting the parent Application removes the Showroom and lab prerequisites
-it created.
+`status` lists the lab Applications that teardown will remove. Deleting the
+parent Application removes the Showroom and lab prerequisites it created;
+the last command prints nothing once both namespaces are gone.

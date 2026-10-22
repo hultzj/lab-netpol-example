@@ -1,7 +1,7 @@
 ---
 site:
-  title: "CHANGE-ME lab title"
-  url: https://CHANGE-ME.github.io/CHANGE-ME
+  title: "Default-Deny Networking for an AI Application Namespace"
+  url: https://hultzj.github.io/lab-netpol-sample
   start_page: modules::index.adoc
 
 content:

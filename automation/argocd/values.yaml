@@ -1,6 +1,6 @@
 # Repository Argo CD syncs the children from (this lab's repo).
 gitops:
-  repoUrl: https://github.com/CHANGE-ME/CHANGE-ME.git
+  repoUrl: https://github.com/hultzj/lab-netpol-sample.git
   revision: main
   basePath: automation/argocd
 
@@ -10,7 +10,7 @@ argocd:
   project: default
 
 lab:
-  namespace: CHANGE-ME
+  namespace: netpol-demo
 
 showroom:
   enabled: true
