@@ -69,6 +69,15 @@
 * *Application-layer authorization.* A NetworkPolicy decides which pods may
   connect, not which requests or users the model API should serve.
 
+== Lab environment security
+
+The Showroom terminal has no login: anyone with the Showroom URL can use it.
+It runs as the `showroom` ServiceAccount, which the upstream Showroom chart
+binds to `edit` in the `{showroom_namespace}` namespace. This lab adds only a
+minimal Role in `{lab_namespace}` (read workloads, `oc exec`, manage
+NetworkPolicies). That is acceptable on a dedicated, short-lived lab cluster.
+On a shared cluster, deploy the lab only for as long as you need it.
+
 == Further reading
 
 * link:https://kubernetes.io/docs/concepts/services-networking/network-policies/#default-policies[Kubernetes: default policies^]
