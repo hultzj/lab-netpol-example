@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Lab contract checks the Antora build cannot do. Usage: bash scripts/check-lab.sh [--draft]
+# Lab contract checks the Antora build cannot do. Run after `npm run build`.
+# Usage: bash scripts/check-lab.sh [--draft]
 # --draft skips the "no unverified steps" check, for use before the live verification pass.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -31,11 +32,23 @@ done
 for page in "$pages"/*.adoc; do
   awk -v f="$page" '
     pending && (/^\[source/ || /^=+ /) { print f ":" line ": execute block without an Expected result"; bad = 1; pending = 0 }
-    /^\[source.*role="execute"/ { pending = 1; line = FNR; next }
+    /^\[source.*role="?execute"?/ { pending = 1; line = FNR; next }
     pending && /^Expected result/ { pending = 0 }
     END { if (pending) { print f ":" line ": execute block without an Expected result"; bad = 1 }; exit bad }
   ' "$page" >&2 || failed=1
 done
+
+# A defined attribute still shown as {name} in the HTML was never substituted:
+# its block lacks subs="attributes+" (Asciidoctor does not warn about that).
+if [[ ! -d www ]]; then
+  fail "no www/ to inspect; run npm run build first"
+else
+  names=$(awk '/^  attributes:/ {a = 1; next} a && /^    [A-Za-z0-9_-]+:/ {sub(/^ +/, ""); sub(/:.*/, ""); print}' \
+    content/antora.yml | paste -sd'|' -)
+  if [[ -n "$names" ]] && grep -rnoE "\{($names)\}" www --include='*.html' >&2; then
+    fail "attributes rendered literally; add subs=\"attributes+\" to those blocks"
+  fi
+fi
 
 if ! $draft && grep -n '^// UNVERIFIED' "$pages"/*.adoc >&2; then
   fail "steps not yet verified on a live cluster (// UNVERIFIED)"

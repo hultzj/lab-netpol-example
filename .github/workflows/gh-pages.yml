@@ -24,9 +24,9 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: lab contract (strict — fails while any step is unverified)
-        run: bash scripts/check-lab.sh
       - run: npm run build
+      - name: lab contract (strict; red until every step is verified live)
+        run: bash scripts/check-lab.sh
       - if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
