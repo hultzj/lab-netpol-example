@@ -57,6 +57,11 @@ else
   fi
 fi
 
+# The field-content Showroom builder (quay.io/rhpds/antora) has no mermaid extension.
+if grep -n '^\[mermaid' "$pages"/*.adoc >&2; then
+  fail "[mermaid] blocks do not render in Showroom; use a table or numbered list"
+fi
+
 if ! $draft && grep -n '^// UNVERIFIED' "$pages"/*.adoc >&2; then
   fail "steps not yet verified on a live cluster (// UNVERIFIED)"
 fi

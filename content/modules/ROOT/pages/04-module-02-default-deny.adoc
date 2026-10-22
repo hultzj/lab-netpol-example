@@ -27,13 +27,20 @@ blocked, allow `{allowed_client}` to the model API port, prove only
 You will create two NetworkPolicies. Argo CD did not create them and does not
 track them, so it neither reverts nor prunes them.
 
-// The mermaid extension does not apply attribute subs (its subs= handling is broken), so names are literal here.
-[mermaid]
-....
-flowchart LR
-  F["frontend<br/>app=frontend"] -->|"TCP 8080: allowed by allow-frontend-to-model-api"| M["model-api<br/>app=model-api"]
-  O["other-app<br/>app=other-app"] -.->|"dropped by default-deny-ingress"| M
-....
+[cols="1,1,1,2",options="header",subs="attributes+"]
+|===
+| Source | Destination | Result | Why
+
+| `{allowed_client}` (`app={allowed_client}`)
+| `{model_api}` TCP {model_api_port}
+| allowed
+| matches `{allow_policy}`
+
+| `{blocked_client}` (`app={blocked_client}`)
+| `{model_api}` TCP {model_api_port}
+| dropped
+| no policy allows it under `{deny_policy}`
+|===
 
 * `{deny_policy}` selects every pod (`podSelector: {}`), lists only
   `Ingress` in `policyTypes`, and has no `ingress` rules. Every pod in the
