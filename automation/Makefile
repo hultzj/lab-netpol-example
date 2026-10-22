@@ -15,13 +15,13 @@ help:
 bootstrap:
 	domain=$$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}') && \
 	  test -n "$$domain" && \
-	  sed "s|DEPLOYER_DOMAIN|$$domain|" $(AUTOMATION_DIR)/bootstrap.yaml | oc apply -f -
+	  sed "s|DEPLOYER_DOMAIN|$$domain|" "$(AUTOMATION_DIR)/bootstrap.yaml" | oc apply -f -
 
 status:
 	oc -n $(GITOPS_NS) get applications.argoproj.io -l demo.redhat.com/application=field-content
 
 verify:
-	GITOPS_NS=$(GITOPS_NS) bash $(AUTOMATION_DIR)/verify.sh
+	GITOPS_NS=$(GITOPS_NS) bash "$(AUTOMATION_DIR)/verify.sh"
 
 teardown:
-	oc delete -f $(AUTOMATION_DIR)/bootstrap.yaml --ignore-not-found --wait=true
+	oc delete -f "$(AUTOMATION_DIR)/bootstrap.yaml" --ignore-not-found --wait=true

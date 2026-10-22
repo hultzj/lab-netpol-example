@@ -112,13 +112,15 @@ In short: default-deny has no exceptions until you write them; the real applicat
 for client in {allowed_client} {blocked_client}; do
   code=$(oc -n {lab_namespace} exec deploy/$client -- \
     curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path})
-  test "$code" = 000 || { echo "FAIL: $client got '$code', want 000"; exit 1; }
+  rc=$?
+  test "$code $rc" = "000 28" || { echo "FAIL: $client got '$code' (exit $rc), want 000 with timeout exit 28"; exit 1; }
 done
 echo PASS
 ----
 
-An empty `code` (for example, the pod is missing and `oc exec` failed) also
-fails the assertion, so a broken probe cannot pass as "blocked".
+Only a timeout counts as blocked: the policy drops packets, so curl gives up
+after three seconds (exit 28). A refused connection (exit 7) or a failed
+`oc exec` fails the assertion, so a broken probe cannot pass as "blocked".
 ====
 
 == Exercise 3: Allow only {allowed_client} to the model API port
@@ -189,12 +191,14 @@ In short: one label decides access, and you have evidence for both outcomes.
 [source,bash,subs="attributes+"]
 ----
 probe() {
-  oc -n {lab_namespace} exec deploy/$1 -- \
-    curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path}
+  local code
+  code=$(oc -n {lab_namespace} exec deploy/$1 -- \
+    curl -s -o /dev/null -m 3 -w '%\{http_code\}' http://{model_api}:{model_api_port}{model_api_path})
+  echo "$code $?"
 }
 a=$(probe {allowed_client}); b=$(probe {blocked_client})
-test "$a" = 200 || { echo "FAIL: {allowed_client} got '$a', want 200"; exit 1; }
-test "$b" = 000 || { echo "FAIL: {blocked_client} got '$b', want 000"; exit 1; }
+test "$a" = "200 0" || { echo "FAIL: {allowed_client} got '$a', want '200 0'"; exit 1; }
+test "$b" = "000 28" || { echo "FAIL: {blocked_client} got '$b', want '000 28' (timeout)"; exit 1; }
 echo PASS
 ----
 ====

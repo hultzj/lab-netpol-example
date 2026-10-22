@@ -5,6 +5,8 @@ set -uo pipefail
 GITOPS_NS=${GITOPS_NS:-openshift-gitops}
 SHOWROOM_NS=${SHOWROOM_NS:-showroom}
 LAB_NS=${LAB_NS:-netpol-demo}
+# Participants run every step as this identity; check as it, not as the facilitator.
+TERMINAL_SA="system:serviceaccount:${SHOWROOM_NS}:showroom"
 failed=0
 
 check() {
@@ -19,11 +21,13 @@ check() {
 }
 
 apps_synced_healthy() {
-  local states
-  states=$(oc -n "$GITOPS_NS" get applications.argoproj.io \
+  local apps
+  apps=$(oc -n "$GITOPS_NS" get applications.argoproj.io \
     -l demo.redhat.com/application=field-content \
-    -o jsonpath='{range .items[*]}{.status.sync.status}/{.status.health.status}{"\n"}{end}') || return 1
-  [[ -n "$states" ]] && ! grep -qv '^Synced/Healthy$' <<<"$states"
+    -o jsonpath='{range .items[*]}{.metadata.name} {.status.sync.status}/{.status.health.status}{"\n"}{end}') || return 1
+  # Both children must exist, and every Application must be Synced/Healthy.
+  grep -q -- '-showroom ' <<<"$apps" && grep -q -- '-prereqs ' <<<"$apps" &&
+    ! grep -qv ' Synced/Healthy$' <<<"$apps"
 }
 
 showroom_answers() {
@@ -39,7 +43,7 @@ no_networkpolicies() {
 }
 
 model_api_returns_200() {
-  [[ "$(oc -n "$LAB_NS" exec "deploy/$1" -- \
+  [[ "$(oc --as "$TERMINAL_SA" -n "$LAB_NS" exec "deploy/$1" -- \
     curl -s -o /dev/null -m 3 -w '%{http_code}' http://model-api:8080/v1/models)" == 200 ]]
 }
 
@@ -49,7 +53,11 @@ for d in model-api frontend other-app; do
   check "deployment $d available" oc -n "$LAB_NS" wait --for=condition=Available "deploy/$d" --timeout=10s
 done
 check "no NetworkPolicy in $LAB_NS (lab starts open)" no_networkpolicies
-check "frontend gets 200 from the model API" model_api_returns_200 frontend
-check "other-app gets 200 from the model API" model_api_returns_200 other-app
+check "frontend gets 200 from the model API (as the terminal)" model_api_returns_200 frontend
+check "other-app gets 200 from the model API (as the terminal)" model_api_returns_200 other-app
+for verb in create delete; do
+  check "terminal can $verb NetworkPolicies" \
+    oc auth can-i "$verb" networkpolicies.networking.k8s.io -n "$LAB_NS" --as "$TERMINAL_SA"
+done
 
 exit "$failed"
